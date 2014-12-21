@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Phone Territory Manager</title>
+    <script type="text/JavaScript" src="territory-classes.js"></script>
+    <script type="text/JavaScript" src="jquery-1.11.1.min.js"></script>
+    <script type="text/JavaScript" src="jquery.blockUI.js"></script>
+    <script type="text/JavaScript" src="jPaq-$js-unofficial.js"></script>
+    <script type="text/JavaScript" src="main.js"></script>
+    <link rel="stylesheet" type="text/css" href="main.css">
+  </head>
+  <body>
+    <fieldset>
+      <legend>Directory</legend>
+      <table id="tblFiles">
+        <tr>
+          <td class="width-1px"><a id="btnDirectory" class="blue-button full-button">Select Directory</a></td>
+          <td><input type="text" readonly id="txtDirectory" value="" /></td>
+        </tr>
+      </table>
+    </fieldset>
+
+    <div id="territoriesPanel" class="panel">
+      <div class="overlay"></div>
+
+      <fieldset>
+        <legend>Territories</legend>
+        <div id="territoriesMenu">
+          <a id="btnAddTerritory" class="blue-button">Add Territory</a>
+          <a id="btnAddTerritory" class="blue-button">Refresh Territories</a>
+        </div>
+
+        <div id="territories">
+        </div>
+      </fieldset>
+    </div>
+  </body>
+</html>
