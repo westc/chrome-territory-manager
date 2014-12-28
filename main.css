@@ -52,7 +52,7 @@ textarea, input[type=text] {
   font-family:arial;
   font-size:15px;
   font-weight:bold;
-  padding:6px 24px;
+  padding:4px 12px;
   text-decoration:none;
   text-shadow:0px 1px 0px #528ecc;
 }
@@ -94,7 +94,7 @@ textarea, input[type=text] {
   font-family:arial;
   font-size:15px;
   font-weight:bold;
-  padding:6px 24px;
+  padding:4px 12px;
   text-decoration:none;
   text-shadow:0px 1px 0px #810e05;
 }
@@ -136,7 +136,7 @@ textarea, input[type=text] {
   font-family:arial;
   font-size:15px;
   font-weight:bold;
-  padding:6px 24px;
+  padding:4px 12px;
   text-decoration:none;
   text-shadow:0px 1px 0px #528009;
 }
@@ -197,4 +197,14 @@ textarea, input[type=text] {
   bottom: 0;
   z-index: 9999;
   background-color: rgba(0, 0, 0, 0.7);
+}
+.nowrap {
+  white-space: nowrap;
+}
+.territoryName {
+  font-size: 110%;
+  text-align: left;
+}
+table .options {
+  text-align: center;
 }
