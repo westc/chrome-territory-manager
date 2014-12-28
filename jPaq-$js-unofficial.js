@@ -250,6 +250,15 @@
         return fn.apply(this, args.concat(arraySlice.call(arguments)));
       };
     },
+    /**
+     * Converts an array of arrays with the sub-arrays containing [key,value] into an object.
+     */
+    kvToObject: function(arr) {
+      return arr.reduce(function(ret, arrKV) {
+        ret[arrKV[0]] = arrKV[1];
+        return ret;
+      }, {});
+    },
     poll: poll,
     dom: dom
   };
