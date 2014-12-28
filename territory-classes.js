@@ -76,12 +76,16 @@ Territory.prototype = {
    * @returns {number} The ID of the record added.
    */
   add: function(record) {
-    var _ = _;
+    var me = this;
+    var _ = me._;
     if (_.typeId != record.getTerritoryTypeId()) {
       throw new Error('The types of the territory and record are not the same.');
     }
-    this._triggerUpdate({action:'add'});
+    me._triggerUpdate({action:'add'});
     _.records.push(record);
+    record.bindToUpdate(function() {
+      me._triggerUpdate.apply(this, arguments);
+    });
     return _.records.length - 1;
   },
   remove: function(id) {
@@ -139,6 +143,9 @@ function PhoneRecord(objOrNumber, opt_details, opt_noteId) {
 }
 PhoneRecord.prototype = {
   constructor: PhoneRecord,
+  getTerritoryTypeId: function() {
+    return Territory.TYPE_IDS.PHONE;
+  },
   setNumber: function(number) {
     this._.number = number;
     this._triggerUpdate({action:'setNumber'});
@@ -159,8 +166,8 @@ PhoneRecord.prototype = {
     if (opt_id != undefined && !PhoneRecord.NOTE_IDS.contains(opt_id)) {
       throw new Error('Cannot set phone note to type ID "' + opt_id + '".');
     }
-    this._.details = details;
-    this._triggerUpdate({action:'setNote'});
+    this._.noteId = opt_id;
+    this._triggerUpdate({action:'setNoteId'});
     return this;
   },
   getNoteId: function() {
@@ -203,6 +210,7 @@ PhoneRecord.NOTE_IDS = {
   FAX: 2,
   OUT_OF_SERVICE: 3,
   DO_NOT_CALL: 4,
+  CENSUS: 5,
   contains: function(id) {
     return Object.keys(this).some(function(key) { return this[key] == id; }, this);
   }
