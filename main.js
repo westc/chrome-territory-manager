@@ -10,6 +10,11 @@ var PHONE_RECORD_NOTE_OPTIONS = [
   { text: 'Unverified (Do Census)', value: PhoneRecord.NOTE_IDS.CENSUS }
 ];
 
+var TERRITORY_TYPE_NAMES_BY_ID = $JS.kvToObject([
+  [Territory.TYPE_IDS.PHONE, 'Phone'],
+  [Territory.TYPE_IDS.HOME, 'Home']
+]);
+
 function main() {
   bindButtons();
   loadPreviousDirectory();
@@ -114,7 +119,7 @@ function getPhoneTerritoryDOM(territory) {
             {
               nodeName: 'a',
               className: 'blue-button',
-              innerText: 'Add A Number',
+              innerText: 'Add',
               onclick: $JS.curry(clickAddPhone, territoryIndex)
             }
           ]
@@ -140,11 +145,12 @@ function getPhoneRecordDOM(record) {
     children: [
       {
         nodeName: 'td',
-        className: 'options nowrap width-1px',
+        className: 'nowrap width-1px',
         innerText: record.getNumber(true)
       },
       {
         nodeName: 'td',
+        className: 'width-1px',
         children: getPhoneNoteDropdownDOM(record)
       },
       {
@@ -207,7 +213,7 @@ function getPhoneNoteDropdownDOM(record) {
 
   return {
     nodeName: 'select',
-    onclick: function() {
+    onchange: function() {
       record.setNoteId(this.value || undefined);
     },
     children: children
@@ -220,6 +226,7 @@ function getPhoneDetailsBoxDOM(record) {
     'type': 'text',
     className: 'width-100pct',
     value: record.getDetails() || '',
+    placeholder: 'Details',
     onchange: function() {
       record.setDetails(this.value || undefined);
     }
@@ -333,21 +340,19 @@ function saveFileAsText(fileEntry, text, callback) {
   });
 }
 
-function saveAllFiles() {
-  try {
-    $JS.forOwn(files, function(dict, key) {
-      if (key == 'results' || key == 'searches') {
-        var entry = dict.entry;
-        var rows = dict.rows;
-        var text = dictArrayToCSV(rows);
-        saveFileAsText(entry, text);
-      }
-    });
-  }
-  catch(e) {
-    alert(e.message);
-    console.error(e);
-  }
+function saveAllTerritories() {
+  territories.forEach(function(territory) {
+    if (territory) {
+      saveTerritory(territory);
+    }
+  });
+}
+
+function saveTerritory(territory) {
+  var fileName = TERRITORY_TYPE_NAMES_BY_ID[territory.getTypeId()] + territory.getNumber() + '.terr';
+  rootEntry.getFile(fileName, {create: true, exclusive: false}, function(fileEntry) {
+    saveFileAsText(fileEntry, JSON.stringify(territory.toObject()));
+  });
 }
 
 function dictArrayToCSV(arr) {
