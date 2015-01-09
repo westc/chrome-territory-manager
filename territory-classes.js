@@ -9,23 +9,31 @@ function Territory(objOrNumber, name, typeId, opt_arrRecords, opt_updatedOn) {
     typeId = objOrNumber.typeId;
     records = objOrNumber.records;
     updatedOn = objOrNumber.updatedOn;
+    opt_arrRecords = objOrNumber.records;
     objOrNumber = objOrNumber.number;
   }
+
   if (!Territory.TYPE_IDS.contains(typeId)) {
     throw new Error('Cannot create a territory of type ID "' + typeId + '".');
   }
-  var RecordType = Territory.RECORD_TYPES_BY_ID[typeId];
-  var obj = {
+
+  var me = this;
+
+  me._ = {
     number: objOrNumber,
     name: name,
-    records: (opt_arrRecords || []).map(function(record) {
-      return new RecordType(record);
-    }),
-    updatedOn: opt_updatedOn || +new Date,
+    records: [],
+    recordUpdateCallbacks: [],
     updateCallbacks: [],
     typeId: typeId
   };
-  this._ = obj;
+
+  var RecordType = Territory.RECORD_TYPES_BY_ID[typeId];
+  (opt_arrRecords || []).forEach(function(record) {
+    me.add(new RecordType(record));
+  });
+
+  me._.updatedOn = opt_updatedOn || +new Date;
 }
 Territory.prototype = {
   constructor: Territory,
@@ -41,9 +49,16 @@ Territory.prototype = {
       }
     });
   },
-  bindToUpdate: function(callback) {
+  bindUpdate: function(callback) {
+    this._.updateCallbacks.push(callback);
+  },
+  unbindUpdate: function(callback) {
     var _ = this._;
-    _.updateCallbacks.push(callback);
+    _.updateCallbacks.forEach(function(value, i, arr) {
+      if (value == callback) {
+        delete arr[i];
+      }
+    });
   },
   getName: function() {
     return this._.name;
@@ -76,17 +91,26 @@ Territory.prototype = {
    * @returns {number} The ID of the record added.
    */
   add: function(record) {
-    var _ = _;
+    var me = this;
+    var _ = me._;
     if (_.typeId != record.getTerritoryTypeId()) {
       throw new Error('The types of the territory and record are not the same.');
     }
-    this._triggerUpdate({action:'add'});
+    me._triggerUpdate({action:'add'});
     _.records.push(record);
+
+    function recordUpdateHandler() {
+      me._triggerUpdate.apply(me, arguments);
+    }
+    record.bindUpdate(recordUpdateHandler);
+    _.recordUpdateCallbacks.push(recordUpdateHandler);
     return _.records.length - 1;
   },
   remove: function(id) {
+    var _ = this._;
+    _.records[id].unbindUpdate(_.recordUpdateCallbacks[id]);
+    delete _.records[id];
     this._triggerUpdate({action:'remove'});
-    delete this._.records[id];
   },
   filter: function(callback) {
     return this._.records.filter(callback, opt_this);
@@ -100,6 +124,7 @@ Territory.prototype = {
       name: _.name,
       number: _.number,
       updatedOn: _.updatedOn,
+      typeId: _.typeId,
       records: _.records.reduce(function(arr, record) {
         arr.push(record.toObject());
         return arr;
@@ -139,6 +164,9 @@ function PhoneRecord(objOrNumber, opt_details, opt_noteId) {
 }
 PhoneRecord.prototype = {
   constructor: PhoneRecord,
+  getTerritoryTypeId: function() {
+    return Territory.TYPE_IDS.PHONE;
+  },
   setNumber: function(number) {
     this._.number = number;
     this._triggerUpdate({action:'setNumber'});
@@ -159,8 +187,8 @@ PhoneRecord.prototype = {
     if (opt_id != undefined && !PhoneRecord.NOTE_IDS.contains(opt_id)) {
       throw new Error('Cannot set phone note to type ID "' + opt_id + '".');
     }
-    this._.details = details;
-    this._triggerUpdate({action:'setNote'});
+    this._.noteId = opt_id;
+    this._triggerUpdate({action:'setNoteId'});
     return this;
   },
   getNoteId: function() {
@@ -178,8 +206,16 @@ PhoneRecord.prototype = {
       }
     });
   },
-  bindToUpdate: function(callback) {
+  bindUpdate: function(callback) {
     this._.updateCallbacks.push(callback);
+  },
+  unbindUpdate: function(callback) {
+    var _ = this._;
+    _.updateCallbacks.forEach(function(value, i, arr) {
+      if (value == callback) {
+        delete arr[i];
+      }
+    });
   },
   toString: function() {
     return JSON.stringify(this.toObject(), 2, 2);
@@ -203,6 +239,7 @@ PhoneRecord.NOTE_IDS = {
   FAX: 2,
   OUT_OF_SERVICE: 3,
   DO_NOT_CALL: 4,
+  CENSUS: 5,
   contains: function(id) {
     return Object.keys(this).some(function(key) { return this[key] == id; }, this);
   }

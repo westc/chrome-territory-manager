@@ -1,6 +1,20 @@
 var rootEntry;
 var territories = [];
 
+var PHONE_RECORD_NOTE_OPTIONS = [
+  { text: '' },
+  { text: 'Foreign Language', value: PhoneRecord.NOTE_IDS.FOREIGN_LANGUAGE },
+  { text: 'Fax', value: PhoneRecord.NOTE_IDS.FAX },
+  { text: 'Out of Service', value: PhoneRecord.NOTE_IDS.OUT_OF_SERVICE },
+  { text: 'Do Not Call', value: PhoneRecord.NOTE_IDS.DO_NOT_CALL },
+  { text: 'Unverified (Do Census)', value: PhoneRecord.NOTE_IDS.CENSUS }
+];
+
+var TERRITORY_TYPE_NAMES_BY_ID = $JS.kvToObject([
+  [Territory.TYPE_IDS.PHONE, 'Phone'],
+  [Territory.TYPE_IDS.HOME, 'Home']
+]);
+
 function main() {
   bindButtons();
   loadPreviousDirectory();
@@ -42,7 +56,32 @@ function clickAddTerritory() {
       if (button == 'Add') {
         var territory = new Territory(fields.number, fields.name, Territory.TYPE_IDS.PHONE);
         territories.push(territory);
-        getTerritoryDOM(territory);
+        $('#territories').append($JS.dom(getTerritoryDOM(territory)));
+      }
+    }
+  });
+}
+
+function clickAddPhone(territoryIndex) {
+  prompt({
+    message: 'Enter a new territory:',
+    fields: [
+      {
+        name: 'number',
+        label: 'Phone Number:',
+        required: true,
+        value: '',
+        placeholder: '1234567890'
+      }
+    ],
+    buttons: ['Add', { label:'Cancel', cancel: true }],
+    callback: function(button, fields) {
+      if (button == 'Add') {
+        var record = new PhoneRecord(fields);
+        territories[territoryIndex].add(record);
+
+        var table = $('#territory' + territoryIndex)[0];
+        table.appendChild($JS.dom(getPhoneRecordDOM(record)));
       }
     }
   });
@@ -53,16 +92,145 @@ function clickDirectory() {
 }
 
 function getTerritoryDOM(territory) {
-  dom({
-    nodeName: 'div',
-    id: 'territory' + territories.indexOf(territory),
+  if (territory.getTypeId() == Territory.TYPE_IDS.PHONE) {
+    return getPhoneTerritoryDOM(territory);
+  }
+  else {
+    throw new Error('Territories of type ' + territory.getTypeId() + ' cannot currently be represented in the DOM.');
+  }
+}
+
+function getPhoneTerritoryDOM(territory) {
+  var territoryIndex = territories.indexOf(territory);
+  var rows = [
+    {
+      nodeName: 'tr',
+      children: [
+        {
+          nodeName: 'th',
+          colSpan: 3,
+          className: 'territoryName',
+          innerText: territory.getNumber() + ' - ' + territory.getName()
+        },
+        {
+          nodeName: 'th',
+          className: 'width-1px nowrap',
+          children: [
+            {
+              nodeName: 'a',
+              className: 'blue-button',
+              innerText: 'Add',
+              onclick: $JS.curry(clickAddPhone, territoryIndex)
+            }
+          ]
+        }
+      ]
+    }
+  ];
+  territory.forEach(function(record) {
+    rows.push(getPhoneRecordDOM(record));
+  });
+
+  return {
+    nodeName: 'table',
+    id: 'territory' + territoryIndex,
+    className: 'territory width-100pct',
+    children: rows
+  };
+}
+
+function getPhoneRecordDOM(record) {
+  return {
+    nodeName: 'tr',
     children: [
       {
-        nodeName: 'div',
-        innerText: territory.name
+        nodeName: 'td',
+        className: 'nowrap width-1px',
+        innerText: record.getNumber(true)
+      },
+      {
+        nodeName: 'td',
+        className: 'width-1px',
+        children: getPhoneNoteDropdownDOM(record)
+      },
+      {
+        nodeName: 'td',
+        children: getPhoneDetailsBoxDOM(record)
+      },
+      {
+        nodeName: 'td',
+        className: 'options nowrap',
+        children: [
+          {
+            nodeName: 'a',
+            className: 'blue-button',
+            innerText: 'Delete'
+          }
+        ]
       }
     ]
+  };
+}
+
+function getPhoneNoteDropdownDOM(record) {
+  var children = [
+    {
+      nodeName: 'option',
+      innerText: ''
+    },
+    {
+      nodeName: 'option',
+      innerText: 'Foreign Language',
+      value: PhoneRecord.NOTE_IDS.FOREIGN_LANGUAGE
+    },
+    {
+      nodeName: 'option',
+      innerText: 'Fax',
+      value: PhoneRecord.NOTE_IDS.FAX
+    },
+    {
+      nodeName: 'option',
+      innerText: 'Out of Service',
+      value: PhoneRecord.NOTE_IDS.OUT_OF_SERVICE
+    },
+    {
+      nodeName: 'option',
+      innerText: 'Do Not Call',
+      value: PhoneRecord.NOTE_IDS.DO_NOT_CALL
+    },
+    {
+      nodeName: 'option',
+      innerText: 'Unverified (Do Census)',
+      value: PhoneRecord.NOTE_IDS.CENSUS
+    }
+  ];
+
+  children.some(function(child) {
+    if (child.value == record.getNoteId()) {
+      return child.selected = 'selected';
+    }
   });
+
+  return {
+    nodeName: 'select',
+    onchange: function() {
+      record.setNoteId(this.value || undefined);
+    },
+    children: children
+  };
+}
+
+function getPhoneDetailsBoxDOM(record) {
+  return {
+    nodeName: 'input',
+    'type': 'text',
+    className: 'width-100pct',
+    value: record.getDetails() || '',
+    placeholder: 'Details',
+    onchange: function() {
+      record.setDetails(this.value || undefined);
+    }
+  };
 }
 
 function chooseDirectory(entry) {
@@ -102,7 +270,7 @@ function setupDirectory(entry) {
       alert('The territory directory was setup successfully.');
     },
     function() {
-      console.log('Error:', arguments);
+      console.error('Error:', arguments);
       alert('An error occurred while trying to setup the history directory.');
     });
 }
@@ -172,21 +340,19 @@ function saveFileAsText(fileEntry, text, callback) {
   });
 }
 
-function saveAllFiles() {
-  try {
-    $JS.forOwn(files, function(dict, key) {
-      if (key == 'results' || key == 'searches') {
-        var entry = dict.entry;
-        var rows = dict.rows;
-        var text = dictArrayToCSV(rows);
-        saveFileAsText(entry, text);
-      }
-    });
-  }
-  catch(e) {
-    alert(e.message);
-    console.log(e);
-  }
+function saveAllTerritories() {
+  territories.forEach(function(territory) {
+    if (territory) {
+      saveTerritory(territory);
+    }
+  });
+}
+
+function saveTerritory(territory) {
+  var fileName = TERRITORY_TYPE_NAMES_BY_ID[territory.getTypeId()] + territory.getNumber() + '.terr';
+  rootEntry.getFile(fileName, {create: true, exclusive: false}, function(fileEntry) {
+    saveFileAsText(fileEntry, JSON.stringify(territory.toObject()));
+  });
 }
 
 function dictArrayToCSV(arr) {
@@ -214,116 +380,134 @@ function dictArrayToCSV(arr) {
   }).join('\n');
 }
 
-function alert(options) {
-  if ($JS.typeOf(options, 'String')) {
-    options = { message: options };
-  }
-  var msg = options.message;
-  var buttons = options.buttons || ['OK'];
-  var callback = options.callback;
-  var container = $('<div><div class="message" /><hr /><div class="buttons" /></div>')
-    .find('.message').text(msg).end()
-    .find('.buttons').append(buttons.map(function(button) {
-      var label = $JS.typeOf(button, 'String') ? button : (button.label || button.value);
-      var value = $JS.typeOf(button, 'String') ? button : (button.value || button.label);
-      return $('<button class="blue-button" style="margin: 0 5px;" />').text(label).click(function() {
-        $.unblockUI();
-        callback && callback(value);
-      });
-    })).end();
-  $.blockUI({
-    message: container,
-    css: {
-      borderRadius: '10px',
-      padding: '5px',
-      fadeIn: 500,
-      fadeOut: 500,
-      width: '50%',
-      left: '25%'
-    }
-  });
-}
-
-function prompt(options) {
-  var idPrefix = ('' + Math.random()).replace(/^0\.?/, '_');
-  var msg = options.message;
-  var fields = options.fields;
-  var buttons = options.buttons || ['OK', 'Cancel'];
-  var callback = options.callback;
-  var container = $('<form><div class="message" /><hr /><div class="buttons" /></form>')
-    .find('.message').each(function() {
-      var jqMe = $(this);
-      if (msg) {
-        jqMe.append($('<div />').text(msg).css({
-          fontWeight: 'bold',
-          fontSize: '110%'
-        }));
-      }
-
-
-      jqMe.append(fields.map(function(field, i) {
-        var id = idPrefix + '_' + i;
-        var input = {
-          nodeName: 'input',
-          'type': 'text',
-          id: id,
-          name: field.name || field.label,
-          value: field.value || ''
-        };
-        if (field.required) {
-          input.className = 'required';
-        }
-        return $JS.dom({
-          nodeName: 'div',
-          children: [
-            {
-              nodeName: 'div',
-              children: {
-                nodeName: 'label',
-                htmlFor: id,
-                innerText: field.label || field.name
-              }
-            },
-            {
-              nodeName: 'div',
-              children: input
-            }
-          ]
-        });
-      }));
-    }).end()
-    .find('.buttons').append(buttons.map(function(button) {
-      var label = $JS.typeOf(button, 'String') ? button : (button.label || button.value);
-      var value = $JS.typeOf(button, 'String') ? button : (button.value || button.label);
-      var isCancel = button.cancel;
-      return $('<button class="blue-button" style="margin: 0 5px;" />').text(label).click(function() {
-        var isMissingSome = container.find('.required').filter(function() {
-          var jq = $(this);
-          var missing = !jq.val();
-          jq[missing ? 'addClass' : 'removeClass']('error');
-          return missing;
-        }).length;
-
-        if (isCancel || !isMissingSome) {
+alert = $JS.param(
+  ['message', 'buttons', 'callback'],
+  function(msg, buttons, callback, options) {
+    msg = $JS.typeOf(options, 'String') ? options : msg;
+    buttons = buttons || ['OK'];
+    var container = $('<div><div class="message" /><hr /><div class="buttons" /></div>')
+      .find('.message').text(msg).end()
+      .find('.buttons').append(buttons.map(function(button) {
+        var label = $JS.typeOf(button, 'String') ? button : (button.label || button.value);
+        var value = $JS.typeOf(button, 'String') ? button : (button.value || button.label);
+        return $('<button class="blue-button" style="margin: 0 5px;" />').text(label).click(function() {
           $.unblockUI();
-          callback && callback(value, container.serializeObject());
-        }
-      });
-    })).css('text-align', 'center').end()
-    .css('cursor', 'default');
+          callback && callback(value);
+        });
+      })).end();
+    $.blockUI({
+      message: container,
+      css: {
+        borderRadius: '10px',
+        padding: '5px',
+        fadeIn: 500,
+        fadeOut: 500,
+        width: '50%',
+        left: '25%'
+      }
+    });
+  }
+);
 
-  $.blockUI({
-    message: container,
-    css: {
-      borderRadius: '10px',
-      padding: '5px',
-      fadeIn: 500,
-      fadeOut: 500,
-      width: '70%',
-      left: '15%',
-      textAlign: 'left'
-    }
-  });
-}
+prompt = $JS.param(
+  ['message', 'fields', ['buttons', ['OK', 'Cancel']], 'callback', 'validator'],
+  function(msg, fields, buttons, callback, validator, options) {
+    var idPrefix = ('' + Math.random()).replace(/^0\.?/, '_');
+
+    var container = $('<form><div class="message" /><hr /><div class="buttons" /></form>')
+      .find('.message').each(function() {
+        var jqMe = $(this);
+        if (msg) {
+          jqMe.append($('<div />').text(msg).css({
+            fontWeight: 'bold',
+            fontSize: '110%'
+          }));
+        }
+
+
+        jqMe.append(fields.map(function(field, i) {
+          var id = idPrefix + '_' + i;
+          var value = field.value || '';
+          var input = field.options
+            ? {
+              nodeName: 'select',
+              children: field.options.map($JS.param(
+                ['value', 'text'],
+                function(optValue, text, option) {
+                  return {
+                    nodeName: 'option',
+                    selected: optValue == value ? 'selected' : '',
+                    value: optValue,
+                    innerText: text
+                  };
+                }
+              ))
+            }
+            : {
+              nodeName: 'input',
+              'type': 'text',
+              name: field.name || field.label,
+              value: value
+            };
+          $JS.extend(input, { id: id });
+          if (field.required) {
+            input.className = 'required';
+          }
+          return $JS.dom({
+            nodeName: 'div',
+            children: [
+              {
+                nodeName: 'div',
+                children: {
+                  nodeName: 'label',
+                  htmlFor: id,
+                  innerText: field.label || field.name
+                }
+              },
+              {
+                nodeName: 'div',
+                children: input
+              }
+            ]
+          });
+        }));
+      }).end()
+      .find('.buttons').append(buttons.map(function(button) {
+        var label = $JS.typeOf(button, 'String') ? button : (button.label || button.value);
+        var buttonValue = $JS.typeOf(button, 'String') ? button : (button.value || button.label);
+        var isCancel = button.cancel;
+        return $('<button class="blue-button" style="margin: 0 5px;" />').text(label).click(function(e) {
+          e.preventDefault();
+
+          var isMissingSome = container.find('.required').filter(function() {
+            var jq = $(this);
+            var missing = !jq.val();
+            jq[missing ? 'addClass' : 'removeClass']('error');
+            return missing;
+          }).length;
+
+          var fields = container.serializeObject();
+          if (isCancel || (!isMissingSome && (!validator || validator(buttonValue, fields)))) {
+            $.unblockUI();
+            callback && callback(buttonValue, fields);
+          }
+        });
+      })).css('text-align', 'center').end()
+      .css('cursor', 'default');
+
+    $.blockUI({
+      message: container,
+      css: {
+        borderRadius: '10px',
+        padding: '5px',
+        fadeIn: 500,
+        fadeOut: 500,
+        width: '70%',
+        left: '15%',
+        textAlign: 'left'
+      }
+    });
+  }
+);
 
 $(main);
