@@ -1,6 +1,6 @@
 {
-  "name": "Phone Territory Manager",
-  "description": "Manage phone territories.",
+  "name": "Territory Manager",
+  "description": "Manage home territories and phone territories.",
   "version": "0.1",
   "manifest_version": 2,
   "app": {
@@ -8,7 +8,16 @@
       "scripts": ["background.js"]
     }
   },
-  "icons": { "16": "images/icon-16.png", "128": "images/icon-128.png" },
+  "icons": {
+    "16": "images/Google_Maps_Icon_16.png",
+    "32": "images/Google_Maps_Icon_32.png",
+    "48": "images/Google_Maps_Icon_48.png",
+    "64": "images/Google_Maps_Icon_64.png",
+    "72": "images/Google_Maps_Icon_72.png",
+    "96": "images/Google_Maps_Icon_96.png",
+    "128": "images/Google_Maps_Icon_128.png",
+    "256": "images/Google_Maps_Icon_256.png"
+  },
   "permissions": [
     {"fileSystem": ["write", "retainEntries", "directory"]},
     "storage",
